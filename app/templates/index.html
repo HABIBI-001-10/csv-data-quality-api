@@ -1,0 +1,498 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Production-ready CSV Data Validation, Profiling, and Cleaning Web Application.">
+  <title>CSV Data Validation & Cleaning Studio</title>
+  <link rel="stylesheet" href="/static/style.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+</head>
+<body>
+  <!-- Header & Top Navigation -->
+  <header class="app-header">
+    <div class="header-container">
+      <div class="brand">
+        <div class="brand-icon" aria-hidden="true">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+            <polyline points="14 2 14 8 20 8"></polyline>
+            <line x1="16" y1="13" x2="8" y2="13"></line>
+            <line x1="16" y1="17" x2="8" y2="17"></line>
+            <polyline points="10 9 9 9 8 9"></polyline>
+          </svg>
+        </div>
+        <div>
+          <h1 class="brand-title">CSV Data Quality Studio</h1>
+          <p class="brand-subtitle">Profile, validate, clean, and export CSV datasets safely</p>
+        </div>
+      </div>
+      <div class="header-actions">
+        <span class="badge badge-neutral" id="appVersionBadge">v{{ app_version }}</span>
+        <a href="/docs" target="_blank" rel="noopener" class="btn btn-secondary btn-sm" id="apiDocsLink">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
+          API Docs
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <!-- Notification Toast Container -->
+  <div id="toastContainer" class="toast-container" aria-live="polite" aria-atomic="true"></div>
+
+  <!-- Main Container -->
+  <main class="main-container">
+    
+    <!-- Upload Section -->
+    <section class="card upload-card" aria-labelledby="uploadHeading">
+      <div class="card-header">
+        <h2 id="uploadHeading" class="card-title">1. Upload CSV Dataset</h2>
+        <span class="card-tag">Max 10 MB • UTF-8 / UTF-8-BOM</span>
+      </div>
+      
+      <div class="drop-zone" id="dropZone" tabindex="0" role="button" aria-label="CSV file upload drop zone. Click or drag a CSV file here.">
+        <input type="file" id="fileInput" accept=".csv" class="visually-hidden" aria-hidden="true">
+        <div class="drop-zone-icon" aria-hidden="true">
+          <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+            <polyline points="17 8 12 3 7 8"></polyline>
+            <line x1="12" y1="3" x2="12" y2="15"></line>
+          </svg>
+        </div>
+        <p class="drop-zone-prompt"><strong>Click to browse</strong> or drag and drop a CSV file here</p>
+        <p class="drop-zone-hint">Supports comma-delimited files (.csv)</p>
+      </div>
+
+      <div class="upload-footer">
+        <div class="file-status" id="fileStatusArea">
+          <span class="status-indicator-dot" id="statusDot"></span>
+          <span id="fileStatusText">No file uploaded yet.</span>
+        </div>
+        <div class="sample-actions">
+          <button type="button" class="btn btn-secondary btn-sm" id="loadSampleBtn">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path></svg>
+            Load Sample Messy Dataset
+          </button>
+          <button type="button" class="btn btn-ghost btn-sm" id="resetBtn" style="display: none;">
+            Clear File
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Global Loading Spinner -->
+    <div id="loadingOverlay" class="loading-overlay" style="display: none;" role="status" aria-live="assertive">
+      <div class="spinner"></div>
+      <p id="loadingMessage" class="loading-text">Processing dataset...</p>
+    </div>
+
+    <!-- Main Workspace (Hidden until file is uploaded) -->
+    <div id="workspace" class="workspace" style="display: none;">
+      
+      <!-- Summary Metric Cards -->
+      <section class="metrics-grid" aria-label="Dataset Overview Metrics">
+        <div class="metric-card">
+          <span class="metric-label">Total Rows</span>
+          <div class="metric-value-row">
+            <span class="metric-number" id="metricTotalRows">-</span>
+            <span class="metric-sub" id="metricMemory">-</span>
+          </div>
+        </div>
+        <div class="metric-card">
+          <span class="metric-label">Total Columns</span>
+          <div class="metric-value-row">
+            <span class="metric-number" id="metricTotalCols">-</span>
+            <span class="metric-badge" id="metricColsBadge">0 cols</span>
+          </div>
+        </div>
+        <div class="metric-card">
+          <span class="metric-label">Missing Values</span>
+          <div class="metric-value-row">
+            <span class="metric-number text-amber" id="metricMissingCount">-</span>
+            <span class="metric-sub" id="metricMissingPct">0%</span>
+          </div>
+        </div>
+        <div class="metric-card">
+          <span class="metric-label">Duplicate Rows</span>
+          <div class="metric-value-row">
+            <span class="metric-number text-indigo" id="metricDuplicateCount">-</span>
+            <span class="metric-sub" id="metricDuplicatePct">0%</span>
+          </div>
+        </div>
+        <div class="metric-card">
+          <span class="metric-label">Quality Status</span>
+          <div class="metric-value-row">
+            <span class="status-badge" id="metricQualityStatus">Ready</span>
+            <span class="metric-sub" id="metricQualityCount">0 issues</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- Navigation Tabs -->
+      <nav class="nav-tabs" role="tablist" aria-label="Dataset Analysis Tabs">
+        <button type="button" class="tab-btn active" role="tab" id="tabBtnPreview" aria-selected="true" aria-controls="tabPreview">
+          Dataset Preview & Profiling
+        </button>
+        <button type="button" class="tab-btn" role="tab" id="tabBtnValidation" aria-selected="false" aria-controls="tabValidation">
+          Quality Audit & Validation <span class="tab-counter" id="validationIssueBadge">0</span>
+        </button>
+        <button type="button" class="tab-btn" role="tab" id="tabBtnCleaning" aria-selected="false" aria-controls="tabCleaning">
+          Data Cleaning Studio
+        </button>
+        <button type="button" class="tab-btn" role="tab" id="tabBtnComparison" aria-selected="false" aria-controls="tabComparison" style="display: none;">
+          Before & After Comparison
+        </button>
+      </nav>
+
+      <!-- Tab 1: Dataset Preview & Profiling -->
+      <section class="tab-panel active" id="tabPreview" role="tabpanel" aria-labelledby="tabBtnPreview">
+        
+        <!-- First 10 Rows Preview Table -->
+        <div class="card preview-card">
+          <div class="card-header">
+            <div>
+              <h3 class="card-title">Dataset Preview</h3>
+              <p class="card-subtitle">Displaying the first 10 rows of the uploaded dataset</p>
+            </div>
+            <span class="table-info-pill" id="previewRowCounter">Showing 0 rows</span>
+          </div>
+          <div class="table-responsive">
+            <table class="data-table" id="previewTable">
+              <thead><tr id="previewTableHead"></tr></thead>
+              <tbody id="previewTableBody"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Column Profiles & Statistics -->
+        <div class="card column-profiles-card">
+          <div class="card-header">
+            <div>
+              <h3 class="card-title">Column Profile & Inferred Types</h3>
+              <p class="card-subtitle">Schema breakdown, null percentages, distinct counts, and numeric statistics</p>
+            </div>
+          </div>
+          <div class="table-responsive">
+            <table class="data-table" id="columnsProfileTable">
+              <thead>
+                <tr>
+                  <th>Column Name</th>
+                  <th>Inferred Type</th>
+                  <th>Missing Values</th>
+                  <th>Unique Values</th>
+                  <th>Numeric Statistics (Min / Mean / Median / Max)</th>
+                  <th>Sample Values</th>
+                </tr>
+              </thead>
+              <tbody id="columnsProfileBody"></tbody>
+            </table>
+          </div>
+        </div>
+
+      </section>
+
+      <!-- Tab 2: Quality Audit & Validation -->
+      <section class="tab-panel" id="tabValidation" role="tabpanel" aria-labelledby="tabBtnValidation">
+        
+        <!-- Rules Configurator Card -->
+        <div class="card config-card">
+          <div class="card-header">
+            <div>
+              <h3 class="card-title">Configurable Validation Rules</h3>
+              <p class="card-subtitle">Set optional rules to audit required columns, date formats, and email syntax</p>
+            </div>
+            <button type="button" class="btn btn-primary btn-sm" id="runValidationBtn">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"></polyline></svg>
+              Run Validation
+            </button>
+          </div>
+
+          <div class="rules-form-grid">
+            <div class="form-group">
+              <label for="ruleRequiredCols" class="form-label">Required Columns (comma-separated):</label>
+              <input type="text" id="ruleRequiredCols" class="form-control" placeholder="e.g. id, email, registration_date">
+              <span class="form-hint">Dataset will trigger an error if any of these columns are absent.</span>
+            </div>
+
+            <div class="form-group">
+              <label for="ruleEmailCols" class="form-label">Email Columns to Validate:</label>
+              <select id="ruleEmailCols" class="form-control select-multi" multiple size="3" aria-label="Select columns containing email addresses">
+              </select>
+              <span class="form-hint">Hold Ctrl / Cmd to select multiple email columns.</span>
+            </div>
+
+            <div class="form-group">
+              <label for="ruleDateCols" class="form-label">Date Columns to Validate:</label>
+              <select id="ruleDateCols" class="form-control select-multi" multiple size="3" aria-label="Select columns containing dates">
+              </select>
+              <span class="form-hint">Columns checked against standard date parsers.</span>
+            </div>
+
+            <div class="form-group">
+              <label for="ruleDateFormat" class="form-label">Explicit Date Format (Optional):</label>
+              <input type="text" id="ruleDateFormat" class="form-control" placeholder="e.g. %Y-%m-%d or %d/%m/%Y">
+              <span class="form-hint">Leave blank for flexible automatic date parsing.</span>
+            </div>
+          </div>
+
+          <div class="rules-checkbox-row">
+            <label class="checkbox-label">
+              <input type="checkbox" id="checkDuplicates" checked>
+              <span>Flag duplicate rows (Warning)</span>
+            </label>
+            <label class="checkbox-label">
+              <input type="checkbox" id="checkEmptyCols" checked>
+              <span>Flag completely empty columns (Warning)</span>
+            </label>
+            <label class="checkbox-label">
+              <input type="checkbox" id="checkMissingVals" checked>
+              <span>Flag missing or blank cells (Warning)</span>
+            </label>
+          </div>
+        </div>
+
+        <!-- Validation Results Card -->
+        <div class="card issues-card">
+          <div class="card-header">
+            <div>
+              <h3 class="card-title">Validation Findings & Issue Log</h3>
+              <p class="card-subtitle" id="validationSubtitle">Detailed record of errors and warnings</p>
+            </div>
+            <div class="card-actions">
+              <button type="button" class="btn btn-secondary btn-sm" id="downloadReportBtn" disabled>
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                Download JSON Report
+              </button>
+            </div>
+          </div>
+
+          <div class="table-responsive">
+            <table class="data-table" id="issuesTable">
+              <thead>
+                <tr>
+                  <th style="width: 100px;">Severity</th>
+                  <th style="width: 160px;">Issue Type</th>
+                  <th>Column</th>
+                  <th style="width: 90px;">Row #</th>
+                  <th>Description</th>
+                  <th>Sample Faulty Value</th>
+                </tr>
+              </thead>
+              <tbody id="issuesTableBody">
+                <tr>
+                  <td colspan="6" class="text-center text-muted">Upload a CSV or click "Run Validation" to scan for quality issues.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+      </section>
+
+      <!-- Tab 3: Data Cleaning Studio -->
+      <section class="tab-panel" id="tabCleaning" role="tabpanel" aria-labelledby="tabBtnCleaning">
+        
+        <div class="card cleaning-settings-card">
+          <div class="card-header">
+            <div>
+              <h3 class="card-title">Configure Cleaning Operations</h3>
+              <p class="card-subtitle">Select explicit data transformations. The original dataset is never modified silently.</p>
+            </div>
+          </div>
+
+          <div class="cleaning-grid">
+            
+            <!-- Standard Cleaning Checkboxes -->
+            <fieldset class="clean-section">
+              <legend class="clean-section-title">General Cleaning</legend>
+              
+              <label class="checkbox-card">
+                <input type="checkbox" id="cleanDropDuplicates" checked>
+                <div>
+                  <strong>Remove duplicate rows</strong>
+                  <p>Keep the first occurrence and drop subsequent identical records.</p>
+                </div>
+              </label>
+
+              <label class="checkbox-card">
+                <input type="checkbox" id="cleanTrimWhitespace" checked>
+                <div>
+                  <strong>Trim leading and trailing whitespace</strong>
+                  <p>Strip unnecessary spaces around all text cells.</p>
+                </div>
+              </label>
+
+              <label class="checkbox-card">
+                <input type="checkbox" id="cleanStandardizeCols">
+                <div>
+                  <strong>Standardize column names to snake_case</strong>
+                  <p>Converts names to lowercase, removes special characters, replaces spaces with underscores.</p>
+                </div>
+              </label>
+
+              <label class="checkbox-card">
+                <input type="checkbox" id="cleanSanitizeFormulas" checked>
+                <div>
+                  <strong>Neutralize CSV formula injection</strong>
+                  <p>Prefixes =, +, -, @ triggers with a quote to prevent execution in spreadsheet software.</p>
+                </div>
+              </label>
+            </fieldset>
+
+            <!-- Columns to Drop -->
+            <fieldset class="clean-section">
+              <legend class="clean-section-title">Columns to Drop</legend>
+              <p class="form-hint">Select any columns you want removed from the cleaned output:</p>
+              <div class="columns-checkbox-container" id="dropColumnsList">
+                <span class="text-muted">Loading columns...</span>
+              </div>
+            </fieldset>
+
+            <!-- Missing Value Strategy -->
+            <fieldset class="clean-section">
+              <legend class="clean-section-title">Missing Values Strategy</legend>
+              <div class="form-group">
+                <label for="cleanMissingStrategy" class="form-label">Global Treatment for Missing Cells:</label>
+                <select id="cleanMissingStrategy" class="form-control">
+                  <option value="leave">Leave Unchanged (Keep nulls/empty)</option>
+                  <option value="drop_rows">Drop Rows Containing Missing Values</option>
+                  <option value="fill_value">Fill with Specified Value</option>
+                  <option value="fill_mean">Fill Numeric Columns with Mean</option>
+                  <option value="fill_median">Fill Numeric Columns with Median</option>
+                  <option value="fill_mode">Fill with Most Frequent Value (Mode)</option>
+                </select>
+              </div>
+
+              <div class="form-group" id="fillValueContainer" style="display: none;">
+                <label for="cleanFillValue" class="form-label">Replacement Value:</label>
+                <input type="text" id="cleanFillValue" class="form-control" placeholder="e.g. N/A, 0, or Unknown">
+              </div>
+            </fieldset>
+
+            <!-- Column Type Casting -->
+            <fieldset class="clean-section">
+              <legend class="clean-section-title">Convert Column Types (Optional)</legend>
+              <div id="typeConversionsList">
+                <p class="form-hint">Cast specific columns to clean types with error coercion:</p>
+              </div>
+              <button type="button" class="btn btn-secondary btn-sm" id="addTypeConversionBtn">
+                + Add Column Type Conversion
+              </button>
+            </fieldset>
+
+          </div>
+
+          <!-- Cleaning Action Buttons -->
+          <div class="cleaning-actions-bar">
+            <button type="button" class="btn btn-secondary" id="previewCleaningBtn">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+              Preview Changes
+            </button>
+            <button type="button" class="btn btn-primary" id="cleanAndDownloadBtn">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+              Clean & Download CSV
+            </button>
+          </div>
+
+        </div>
+
+      </section>
+
+      <!-- Tab 4: Before & After Comparison -->
+      <section class="tab-panel" id="tabComparison" role="tabpanel" aria-labelledby="tabBtnComparison">
+        
+        <!-- Summary Differential Metrics -->
+        <div class="card comparison-metrics-card">
+          <div class="card-header">
+            <div>
+              <h3 class="card-title">Cleaning Impact Summary</h3>
+              <p class="card-subtitle">Before and after metrics reflecting applied cleaning transformations</p>
+            </div>
+            <button type="button" class="btn btn-primary btn-sm" id="downloadCleanedFromComparisonBtn">
+              Download Cleaned CSV
+            </button>
+          </div>
+
+          <div class="comparison-grid">
+            <div class="diff-card">
+              <span class="diff-label">Rows</span>
+              <div class="diff-values">
+                <span class="diff-before" id="diffRowsBefore">0</span>
+                <span class="diff-arrow" aria-hidden="true">&rarr;</span>
+                <span class="diff-after" id="diffRowsAfter">0</span>
+              </div>
+              <span class="diff-badge" id="diffRowsRemoved">0 removed</span>
+            </div>
+
+            <div class="diff-card">
+              <span class="diff-label">Columns</span>
+              <div class="diff-values">
+                <span class="diff-before" id="diffColsBefore">0</span>
+                <span class="diff-arrow" aria-hidden="true">&rarr;</span>
+                <span class="diff-after" id="diffColsAfter">0</span>
+              </div>
+              <span class="diff-badge" id="diffColsRemoved">0 removed</span>
+            </div>
+
+            <div class="diff-card">
+              <span class="diff-label">Missing Cells</span>
+              <div class="diff-values">
+                <span class="diff-before" id="diffMissingBefore">0</span>
+                <span class="diff-arrow" aria-hidden="true">&rarr;</span>
+                <span class="diff-after" id="diffMissingAfter">0</span>
+              </div>
+              <span class="diff-badge badge-success" id="diffMissingResolved">0 resolved</span>
+            </div>
+
+            <div class="diff-card">
+              <span class="diff-label">Duplicate Rows</span>
+              <div class="diff-values">
+                <span class="diff-before" id="diffDupsBefore">0</span>
+                <span class="diff-arrow" aria-hidden="true">&rarr;</span>
+                <span class="diff-after" id="diffDupsAfter">0</span>
+              </div>
+              <span class="diff-badge badge-success" id="diffDupsRemoved">0 dropped</span>
+            </div>
+          </div>
+
+          <!-- Step-by-Step Operations Log -->
+          <div class="operations-log-section">
+            <h4 class="operations-title">Operations Applied</h4>
+            <ol class="operations-list" id="operationsAppliedList">
+              <li>No operations applied yet.</li>
+            </ol>
+          </div>
+        </div>
+
+        <!-- Before & After Preview Tables -->
+        <div class="card comparison-tables-card">
+          <div class="card-header">
+            <h3 class="card-title">Cleaned Data Preview (First 10 Rows)</h3>
+          </div>
+          <div class="table-responsive">
+            <table class="data-table" id="cleanedPreviewTable">
+              <thead><tr id="cleanedPreviewHead"></tr></thead>
+              <tbody id="cleanedPreviewBody"></tbody>
+            </table>
+          </div>
+        </div>
+
+      </section>
+
+    </div>
+
+  </main>
+
+  <!-- App Footer -->
+  <footer class="app-footer">
+    <div class="footer-container">
+      <p>CSV Data Validation and Cleaning API • Production-Minded Architecture</p>
+      <p class="text-muted">Built with FastAPI, Pandas, Pydantic, and Vanilla JS</p>
+    </div>
+  </footer>
+
+  <script src="/static/script.js"></script>
+</body>
+</html>
